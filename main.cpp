@@ -29,6 +29,7 @@
 
 
 #pragma comment(lib, "Ws2_32.lib")
+
 using namespace std;
 
 struct addrinfo *results=NULL,*ptr = NULL, hints;
@@ -68,6 +69,21 @@ int main(){
     if(listen(Listener, SOMAXCONN) < 0){
         perror("Listen failed w error");
         return 1;
+    }
+
+    sockaddr_in bound_addr;
+    int bound_addr_len = sizeof(bound_addr);
+
+    if(getsockname(Listener, (struct sockaddr*)&bound_addr, (socklen_t *)&bound_addr_len) == 0){
+        char local_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &bound_addr.sin_addr, local_ip, sizeof(local_ip));
+
+        int local_port = ntohs(bound_addr.sin_port);
+        cout << "[Main] SUCCESS: Load Balancer is actively bound to local address: " 
+        << local_ip << ":" << local_port << endl;
+    }
+    else{
+        cerr << "[Main] Failed to retrieve bound address details. Error: ";
     }
 
     LoadBalancer loadBalancer = LoadBalancer();

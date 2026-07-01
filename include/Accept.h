@@ -21,7 +21,7 @@
     #include <unistd.h>
 #endif
 
-#define PORT "27015"
+#define PORT "8081"
 #include "loadBalancer.cpp"
 using namespace std;
 
