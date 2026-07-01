@@ -25,10 +25,7 @@
 #include <sstream>
 #include <iostream>
 
-#define PORT "27015"
 #define ZeroMemory RtlZeroMemory
-
-struct addrinfo *result = NULL, *ptr = NULL, hints;
 
 
 using namespace std;
@@ -37,16 +34,15 @@ Accept::Accept(){
 
 }
 
-Backend Accept::poll_for_connections(int control_server,LoadBalancer& l){
+Backend Accept::poll_for_connections(int control_server, LoadBalancer& l){
+     std::cout << "[Accept] (Windows) Waiting for Node.js backends to check in...\n";
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
 
-    std::cout << "[Accept] (Windows) Waiting for Node.js backends to check in...\n";
-
     int client_fd = accept(control_server, (struct sockaddr*)&client_addr, &client_len);
     std::cout << client_fd;
+
     if (client_fd < 0) {
-        
         throw std::runtime_error("Accept failed on control socket. Error: ");
     }
 

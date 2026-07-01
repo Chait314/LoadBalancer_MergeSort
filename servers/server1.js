@@ -13,8 +13,8 @@ app.listen(port, ()=>{
     console.log(`Node server on port ${port}`);
     const client = new net.Socket();
 
-    client.connect(LB_CONTROL_PORT, '127.0.0.1',()=>{
-        client.write(`REGISTER 127.0.0.1:${port}`);
+    client.connect({port:LB_CONTROL_PORT,host: '127.0.0.1',family:4},()=>{
+        client.write(`REGISTER 127.0.0.1:${port}\n`);
     });
 
     client.on('error', (err) => {
