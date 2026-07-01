@@ -1,0 +1,23 @@
+const express = require('express');
+const net = require('net');
+const app = express();
+
+const port = 3001;
+const LB_CONTROL_PORT = 8081;
+
+app.get("/",(req, res)=>{
+    res.send(`Hello There ${port}`);
+});
+
+app.listen(port, ()=>{
+    console.log(`Node server on port ${port}`);
+    const client = new net.Socket();
+
+    client.connect(LB_CONTROL_PORT, '127.0.0.1',()=>{
+        client.write(`REGISTER 127.0.0.1:${port}`);
+    });
+
+    client.on('error', (err) => {
+        console.error("Could not register to C++ Load Balancer. Is it running?", err.message);
+    });
+})
