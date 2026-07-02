@@ -2,7 +2,7 @@ const express = require('express');
 const net = require('net');
 const app = express();
 
-const port = 3001;
+const port = 3004;
 const LB_CONTROL_PORT = 8081;
 
 app.get("/",(req, res)=>{

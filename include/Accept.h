@@ -28,7 +28,9 @@ using namespace std;
 class Accept{
     public:
     Accept();
-    Backend poll_for_connections(int control_server, LoadBalancer& l);
+    void poll_for_connections(int control_server, LoadBalancer& l);
+    bool poll_to_backends(int port, string IP);
+    Backend accept_a_client(int control_server, LoadBalancer& l);
 };
 
 #endif

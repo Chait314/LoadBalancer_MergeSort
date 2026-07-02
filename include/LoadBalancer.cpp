@@ -4,6 +4,7 @@
 #include <limits>
 #include <stdexcept>
 #include "LoadBalancer.h"
+#include <algorithm>
 
 LoadBalancer::LoadBalancer(){
 
@@ -43,6 +44,7 @@ void merge(vector<Backend>&backendC, int l, int mid,int r){
     return;
 }
 
+
 void mergeSort(vector<Backend>&backendC, int l, int r){
     if(l >= r) return;
 
@@ -50,6 +52,32 @@ void mergeSort(vector<Backend>&backendC, int l, int r){
     mergeSort(backendC, l, mid);
     mergeSort(backendC, mid+1, r);
     merge(backendC, l, mid, r);
+    return;
+}
+
+
+
+void LoadBalancer::remove_connection(int port, string IP_address){
+    std::lock_guard<std::mutex>lock(mtx);
+
+    backendConnections.erase(
+        std::remove_if(backendConnections.begin(), backendConnections.end(),
+            [&](const Backend& b) {
+                return (b.ip_address == IP_address && b.port == port);
+            }),
+        backendConnections.end());
+
+    std::cout << "Server: " << IP_address << ":" << port << " removed\n";
+}
+
+void LoadBalancer::check(){
+    Accept a;
+    for(auto& backend: backendConnections){
+        bool b = a.poll_to_backends(backend.port, backend.ip_address);
+        if(b == false){
+            remove_connection(backend.port, backend.ip_address);
+        }
+    }
     return;
 }
 

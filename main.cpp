@@ -91,9 +91,9 @@ int main(){
 
     while(1){
         try{
-            cout <<"hh";
-            Backend back = accept.poll_for_connections(Listener, loadBalancer);
-            cout << "[Main] Successfully registered backend: " << back.ip_address << ":" << back.port << endl;
+            //cout <<"hh";
+            accept.poll_for_connections(Listener, loadBalancer);
+            cout << "[Main] Successfully registered backend: \n";
         }catch(const std::exception& e){
             cerr << "[Main] Error handling registration: " << e.what() << endl;
         }

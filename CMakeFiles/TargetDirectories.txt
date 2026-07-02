@@ -1,0 +1,3 @@
+/mnt/c/Users/chait/React_CPP/project/CMakeFiles/project.dir
+/mnt/c/Users/chait/React_CPP/project/CMakeFiles/edit_cache.dir
+/mnt/c/Users/chait/React_CPP/project/CMakeFiles/rebuild_cache.dir
