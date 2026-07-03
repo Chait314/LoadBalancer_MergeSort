@@ -20,6 +20,7 @@
 
 
 #include <iostream>
+#include <thread>
 #include <vector>
 #include <string>
 #include <atomic>
@@ -27,12 +28,27 @@
 #include "include/Backend.cpp"
 #include <cstring>
 
+#define PORT2 "8080"
+
 
 #pragma comment(lib, "Ws2_32.lib")
 
 using namespace std;
 
 struct addrinfo *results=NULL,*ptr = NULL, hints;
+
+struct addrinfo *res_client=NULL,*pt_client=NULL, h_client;
+
+void runBackendReg(Accept& accept, int listener, LoadBalancer& l){
+    while (true) {
+        try {
+            accept.poll_for_connections(listener, l);
+            std::cout << "[Registration Thread] Successfully registered a backend!\n";
+        } catch (const std::exception& e) {
+            std::cerr << "[Registration Thread] Error: " << e.what() << std::endl;
+        }
+    }
+}
 
 int main(){
 
@@ -89,15 +105,49 @@ int main(){
     LoadBalancer loadBalancer = LoadBalancer();
     Accept accept = Accept();
 
-    while(1){
+    thread bg_run(runBackendReg, ref(accept), Listener, ref(loadBalancer));
+
+    bg_run.detach();
+
+
+    memset(&h_client,0,sizeof(h_client));
+    h_client.ai_family = AF_INET;
+    h_client.ai_protocol = IPPROTO_TCP;
+    h_client.ai_flags = AI_PASSIVE;
+    h_client.ai_socktype = SOCK_STREAM;
+
+    int ires_client = getaddrinfo(NULL, PORT2, &h_client, &res_client);
+
+    if(ires_client != 0){
+        printf("error ires %d\n", res);
+        return 1;
+    }
+
+    int client_listener = socket(res_client->ai_family, res_client->ai_socktype, res_client->ai_protocol);
+
+    if(client_listener < 0){
+        perror("error in socket");
+        return 1;
+    }
+
+    auto client_bind = bind(client_listener, res_client->ai_addr, (int)res_client->ai_addrlen);
+
+    if(client_bind < 0){
+        perror("error in bind2");
+        return 1;
+    }
+
+    if(listen(client_listener, SOMAXCONN) < 0){
+        perror("Listen failed w error");
+        return 1;
+    }
+
+    while(true){
         try{
-            //cout <<"hh";
-            accept.poll_for_connections(Listener, loadBalancer);
-            cout << "[Main] Successfully registered backend: \n";
+            loadBalancer.accept_a_client(client_listener, loadBalancer);
         }catch(const std::exception& e){
-            cerr << "[Main] Error handling registration: " << e.what() << endl;
+            cerr << "Could not accept clients\n";
         }
-        
     }
     return 0;
 }
