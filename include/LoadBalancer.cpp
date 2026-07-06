@@ -96,7 +96,6 @@ void LoadBalancer::remove_connection(int port, string IP_address){
 }
 
 
-
 void LoadBalancer::accept_a_client(int control_server, LoadBalancer& l){
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -139,10 +138,10 @@ bool LoadBalancer::poll_to_backends(int port, string IP){
 
     int connection_result = connect(healthSocket, (sockaddr*)&target_addr, sizeof(target_addr));
 
-    if (connection_result == 0 || connection_result < 0) {
+    if (connection_result < 0) {
         //int y = closesocket(healthSocket);
         std::cerr << "[HealthCheck] Port " << port << " is DOWN or unreachable. Winsock Error: "<< "\n";
-        return true; 
+        return false;
     }
 
     int bytes_sent = send(healthSocket, httpreq.c_str(), sizeof(httpreq), 0);
