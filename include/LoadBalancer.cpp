@@ -30,6 +30,9 @@
 #include "LoadBalancer.h"
 #include <algorithm>
 #include <sstream>
+#include <cstring>
+
+#define PORT3 "8082"
 
 LoadBalancer::LoadBalancer(){
 
@@ -95,6 +98,7 @@ void LoadBalancer::remove_connection(int port, string IP_address){
     std::cout << "Server: " << IP_address << ":" << port << " removed\n";
 }
 
+struct addrinfo *res_3 = NULL, *ptr_3 = NULL,hints_3;
 
 void LoadBalancer::accept_a_client(int control_server, LoadBalancer& l){
     struct sockaddr_in client_addr;
@@ -124,43 +128,82 @@ void LoadBalancer::accept_a_client(int control_server, LoadBalancer& l){
 bool LoadBalancer::poll_to_backends(int port, string IP){
     string httpreq = "GET / HTTP/1.1\r\nHost: " + IP + "\r\nConnection: close\r\n\r\n";
 
+    memset(&hints_3, 0, sizeof(hints_3));
+    hints_3.ai_family = AF_INET;
+    hints_3.ai_flags = AI_PASSIVE;
+    hints_3.ai_socktype = SOCK_STREAM;
+    hints_3.ai_protocol = IPPROTO_TCP;
+
+
+
     int healthSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    
+    int ires = getaddrinfo(IP.c_str(), to_string(port).c_str(), &hints_3, &res_3);
+    if (ires != 0) {
+        std::cerr << "[HealthCheck] Address resolution failed for " << IP << ":" << port << "\n";
+        return false;
+    }
 
     if(healthSocket < 0){
         std::cerr << "invalid health socket\n";
         return false;
     }
-    struct sockaddr_in target_addr;
 
-    target_addr.sin_port = htons(port);
-    target_addr.sin_family = AF_INET;
-    inet_pton(AF_INET, IP.c_str(), &target_addr.sin_addr);
-
-    int connection_result = connect(healthSocket, (sockaddr*)&target_addr, sizeof(target_addr));
-
-    if (connection_result < 0) {
-        //int y = closesocket(healthSocket);
-        std::cerr << "[HealthCheck] Port " << port << " is DOWN or unreachable. Winsock Error: "<< "\n";
+    if(ires < 0){
+        std::cerr << "invalid address resolved\n";
         return false;
     }
 
-    int bytes_sent = send(healthSocket, httpreq.c_str(), sizeof(httpreq), 0);
+    int msgsnd_Socket = socket(res_3->ai_family, res_3->ai_socktype, res_3->ai_protocol);
 
-    if(bytes_sent == 0 || bytes_sent < 0){
-        std::cerr << "[HealthCheck] Port connected, but failed to transmit data.\n";
-        //int y = closesocket(healthSocket);
+    if(msgsnd_Socket < 0){
+        freeaddrinfo((addrinfo*)ires);
+        return false;
+    }
+
+    if (connect(msgsnd_Socket, res_3->ai_addr, (int)res_3->ai_addrlen) < 0) {
+        std::cerr << "[HealthCheck] Outbound msgsnd connection failed.\n";
+        freeaddrinfo(res_3);
+        return false;
+    }
+
+    int msgrcv_socket = socket(res_3->ai_family, res_3->ai_socktype, res_3->ai_protocol);
+    if (msgrcv_socket < 0) {
+        freeaddrinfo(res_3);
+        return false;
+    }
+
+    //std::cout << "[HealthCheck] Connecting outbound msgrcv socket...\n";
+    if (connect(msgrcv_socket, res_3->ai_addr, (int)res_3->ai_addrlen) < 0) {
+        std::cerr << "[HealthCheck] Outbound msgrcv connection failed.\n";
+      //  closesocket(msgsnd_socket);
+        //closesocket(msgrcv_socket);
+        freeaddrinfo(res_3);
+        return false;
+    }
+
+    freeaddrinfo((addrinfo*)ires);
+
+    int bytes_sent = send(msgsnd_Socket, httpreq.c_str(), httpreq.length(), 0);
+    
+    // Shut down sending capability on this socket since we are finished talking 
+
+    if (bytes_sent <= 0) {
+      //  closesocket(msgsnd_socket);
+       // closesocket(msgrcv_socket);
+        cout << "No Bytes sent : " << IP << ":" << port <<'\n';
         return false;
     }
 
     char response_buffer[128] = {0};
-    int bytes_received = recv(healthSocket, response_buffer, sizeof(response_buffer) - 1, 0);
+    int bytes_received = recv(msgrcv_socket, response_buffer, sizeof(response_buffer) - 1, 0);
+
 
     if (bytes_received > 0 && std::string(response_buffer).find("200 OK") != std::string::npos) {
-      //  std::cout << "[HealthCheck] Port " << port << " is ACTIVE and fully healthy.\n";
+        std::cout << "[HealthCheck] Dual-sockets successfully verified backend status.\n";
         return true;
     }
 
-    std::cout << "Port :" << port << " IP: " << IP << "is inactive\n";
     return false;
 }
 

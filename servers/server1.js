@@ -4,10 +4,12 @@ const app = express();
 
 const port = 3001;
 const LB_CONTROL_PORT = 8081;
+const LB_CHECK_PORT = 8082;
 
 app.get("/",(req, res)=>{
     res.send(`Hello There ${port}`);
 });
+
 
 app.listen(port, ()=>{
     console.log(`Node server on port ${port}`);

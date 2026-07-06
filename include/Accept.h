@@ -22,7 +22,7 @@
 #endif
 
 #define PORT "8081"
-#include "loadBalancer.cpp"
+#include "LoadBalancer.cpp"
 using namespace std;
 
 class Accept{

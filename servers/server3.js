@@ -4,6 +4,7 @@ const app = express();
 
 const port = 3003;
 const LB_CONTROL_PORT = 8081;
+const LB_CHECK_PORT = 8082;
 
 app.get("/",(req, res)=>{
     res.send(`Hello There ${port}`);
@@ -16,7 +17,6 @@ app.listen(port, ()=>{
     client.connect({port:LB_CONTROL_PORT,host: '0.0.0.0',family:4},()=>{
         client.write(`REGISTER 127.0.0.1:${port}\n`);
     });
-
  // client.closed()
 
     client.on('error', (err) => {
