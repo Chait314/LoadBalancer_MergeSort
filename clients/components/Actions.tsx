@@ -9,7 +9,7 @@ type back={
 
 export async function fetchDataFromCluster() {
   try {
-    const backend:back = await GetBestBackend();
+    const backend = await GetBestBackend() as back;
     console.log(`Balancer redirected us to port: ${backend.port}`);
 
     // 2. Query that specific Node.js server directly for the page data

@@ -102,7 +102,7 @@ int main(){
         cerr << "[Main] Failed to retrieve bound address details. Error: ";
     }
 
-    LoadBalancer loadBalancer = LoadBalancer();
+    LoadBalancer loadBalancer = LoadBalancer(Listener ,PORT);
     Accept accept = Accept();
 
     thread bg_run(runBackendReg, ref(accept), Listener, ref(loadBalancer));

@@ -7,7 +7,7 @@ const LB_CONTROL_PORT = 8081;
 const LB_CHECK_PORT = 8082;
 
 app.get("/",(req, res)=>{
-    res.send(`Hello There ${port}`);
+    res.status(200).send('OK');
 });
 
 app.listen(port, ()=>{

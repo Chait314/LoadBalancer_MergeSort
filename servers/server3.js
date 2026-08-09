@@ -7,16 +7,18 @@ const LB_CONTROL_PORT = 8081;
 const LB_CHECK_PORT = 8082;
 
 app.get("/",(req, res)=>{
-    res.send(`Hello There ${port}`);
+    res.status(200).send('OK');
 });
 
 app.listen(port, ()=>{
     console.log(`Node server on port ${port}`);
     const client = new net.Socket();
 
-    client.connect({port:LB_CONTROL_PORT,host: '0.0.0.0',family:4},()=>{
+    client.connect({port:LB_CONTROL_PORT,host: '127.0.0.1',family:4},()=>{
         client.write(`REGISTER 127.0.0.1:${port}\n`);
     });
+
+    
  // client.closed()
 
     client.on('error', (err) => {

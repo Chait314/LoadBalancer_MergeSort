@@ -6,6 +6,7 @@
 
 #include <winsock2.h>
 #include <windows.h>
+
 #include <ws2tcpip.h>
 
 
@@ -32,10 +33,17 @@
 #include <sstream>
 #include <cstring>
 
-#define PORT3 "8082"
+#define PORT3 "8083"
+#define INT_MAX 1000000
 
 LoadBalancer::LoadBalancer(){
+    this->sockete = -1;
+    this->porte = "";
+}
 
+LoadBalancer::LoadBalancer(int socket, string port){
+    this->sockete = socket;
+    this->porte = port;
 }
 
 void merge(vector<Backend>&backendC, int l, int mid,int r){
@@ -83,7 +91,13 @@ void mergeSort(vector<Backend>&backendC, int l, int r){
     return;
 }
 
+string LoadBalancer:: getPort(){
+    return (this->porte != "")  ? (this->porte) : "";
+}
 
+int LoadBalancer:: getSocket(){
+    return this->sockete;
+}
 
 void LoadBalancer::remove_connection(int port, string IP_address){
     std::lock_guard<std::mutex>lock(mtx);
@@ -127,18 +141,22 @@ void LoadBalancer::accept_a_client(int control_server, LoadBalancer& l){
 
 bool LoadBalancer::poll_to_backends(int port, string IP){
     string httpreq = "GET / HTTP/1.1\r\nHost: " + IP + "\r\nConnection: close\r\n\r\n";
-
+    struct addrinfo hints_3, *res_3 = nullptr;
     memset(&hints_3, 0, sizeof(hints_3));
-    hints_3.ai_family = AF_INET;
-    hints_3.ai_flags = AI_PASSIVE;
-    hints_3.ai_socktype = SOCK_STREAM;
+    hints_3.ai_family = AF_INET;       // IPv4
+    hints_3.ai_socktype = SOCK_STREAM; // TCP Stream
     hints_3.ai_protocol = IPPROTO_TCP;
 
-
-
     int healthSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+
+
+    if(healthSocket < 0){
+        std::cerr << "HealthSocket is not working\n";
+        return false;
+    }
     
-    int ires = getaddrinfo(IP.c_str(), to_string(port).c_str(), &hints_3, &res_3);
+    int ires = getaddrinfo(IP.c_str(), std::to_string(port).c_str(), &hints_3, &res_3);
     if (ires != 0) {
         std::cerr << "[HealthCheck] Address resolution failed for " << IP << ":" << port << "\n";
         return false;
@@ -157,32 +175,16 @@ bool LoadBalancer::poll_to_backends(int port, string IP){
     int msgsnd_Socket = socket(res_3->ai_family, res_3->ai_socktype, res_3->ai_protocol);
 
     if(msgsnd_Socket < 0){
-        freeaddrinfo((addrinfo*)ires);
-        return false;
-    }
-
-    if (connect(msgsnd_Socket, res_3->ai_addr, (int)res_3->ai_addrlen) < 0) {
-        std::cerr << "[HealthCheck] Outbound msgsnd connection failed.\n";
         freeaddrinfo(res_3);
         return false;
     }
 
-    int msgrcv_socket = socket(res_3->ai_family, res_3->ai_socktype, res_3->ai_protocol);
-    if (msgrcv_socket < 0) {
+    if(connect(msgsnd_Socket, res_3->ai_addr, (int)res_3->ai_addrlen) < 0){
+        std::cerr << "[HealthCheck] Outbound connection failed.\n";
         freeaddrinfo(res_3);
         return false;
     }
-
-    //std::cout << "[HealthCheck] Connecting outbound msgrcv socket...\n";
-    if (connect(msgrcv_socket, res_3->ai_addr, (int)res_3->ai_addrlen) < 0) {
-        std::cerr << "[HealthCheck] Outbound msgrcv connection failed.\n";
-      //  closesocket(msgsnd_socket);
-        //closesocket(msgrcv_socket);
-        freeaddrinfo(res_3);
-        return false;
-    }
-
-    freeaddrinfo((addrinfo*)ires);
+    freeaddrinfo(res_3);
 
     int bytes_sent = send(msgsnd_Socket, httpreq.c_str(), httpreq.length(), 0);
     
@@ -196,7 +198,7 @@ bool LoadBalancer::poll_to_backends(int port, string IP){
     }
 
     char response_buffer[128] = {0};
-    int bytes_received = recv(msgrcv_socket, response_buffer, sizeof(response_buffer) - 1, 0);
+    int bytes_received = recv(msgsnd_Socket, response_buffer, sizeof(response_buffer) - 1, 0);
 
 
     if (bytes_received > 0 && std::string(response_buffer).find("200 OK") != std::string::npos) {
@@ -210,9 +212,9 @@ bool LoadBalancer::poll_to_backends(int port, string IP){
 void LoadBalancer::check(){
     for(auto& backend: backendConnections){
         bool b = poll_to_backends(backend.port, backend.ip_address);
-        if(b == false){
-            remove_connection(backend.port, backend.ip_address);
-        }
+        // if(b == false){
+        //     remove_connection(backend.port, backend.ip_address);
+        // }
     }
     return;
 }
@@ -236,7 +238,7 @@ Backend LoadBalancer::choose_backend(){
         throw std::runtime_error("No backend servers registered!");
     }
     Backend* best_backend = nullptr;
-    int min_connections = std::numeric_limits<int>::max();
+    int min_connections = INT_MAX;
 
     for (auto& backend : backendConnections) {
         if (backend.isHealthy) {
